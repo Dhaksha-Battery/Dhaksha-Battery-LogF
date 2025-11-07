@@ -46,7 +46,7 @@ function LoginPage() {
         noValidate
         autoComplete="off"
       >
-        <h2 className="text-2xl font-bold mb-4 text-center">Login</h2>
+        <h2 className="text-2xl font-bold mb-4 text-center">Hey, Please Login here!</h2>
 
         {error && (
           <p className="text-red-500 text-center mb-3 text-sm">{error}</p>
