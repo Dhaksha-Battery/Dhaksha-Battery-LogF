@@ -9,8 +9,15 @@ function AdminDashboard() {
   const { token, role, signOut } = useAuth();
 
   const [batteryId, setBatteryId] = useState("");
+  const [date, setDate] = useState("");
   const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(false);
+
+  // Separate loading states for clarity:
+  const [loadingSearch, setLoadingSearch] = useState(false);
+  const [loadingDownload, setLoadingDownload] = useState(false);
+  const [loadingDateSearch, setLoadingDateSearch] = useState(false);
+  const [loadingDateDownload, setLoadingDateDownload] = useState(false);
+
   const [toast, setToast] = useState(null);
 
   useEffect(() => {
@@ -32,23 +39,22 @@ function AdminDashboard() {
     setTimeout(() => setToast(null), ms);
   };
 
+  // Search by battery id
   const handleSearch = async () => {
     if (!batteryId.trim()) {
       showToast("Please enter a Battery ID");
       return;
     }
-
-    setLoading(true);
+    setLoadingSearch(true);
     try {
       const res = await api.get(`/admin/rows/search`, {
         params: { batteryId: batteryId.trim() },
       });
-
       const rows = Array.isArray(res.data) ? res.data : [];
       setData(rows);
       if (!rows.length) showToast("No data found for that Battery ID");
     } catch (err) {
-      console.error("Admin search error:", err?.response?.data || err.message);
+      console.error("Admin search error:", err?.response || err);
       if (err?.response?.status === 401 || err?.response?.status === 403) {
         showToast("Session expired. Redirecting to login...");
         setTimeout(() => {
@@ -59,16 +65,17 @@ function AdminDashboard() {
         showToast("Error fetching data");
       }
     } finally {
-      setLoading(false);
+      setLoadingSearch(false);
     }
   };
 
+  // Download CSV for battery id
   const handleDownload = async () => {
     if (!batteryId.trim()) {
       showToast("Enter a Battery ID before downloading");
       return;
     }
-    setLoading(true);
+    setLoadingDownload(true);
     try {
       const res = await api.get(`/admin/rows/export`, {
         params: { batteryId: batteryId.trim() },
@@ -87,10 +94,72 @@ function AdminDashboard() {
 
       showToast("CSV downloaded successfully");
     } catch (err) {
-      console.error("Download error:", err?.response?.data || err.message);
+      console.error("Download error:", err?.response || err);
       showToast("Error downloading CSV");
     } finally {
-      setLoading(false);
+      setLoadingDownload(false);
+    }
+  };
+
+  // Search rows by date (expects date in YYYY-MM-DD)
+  const handleSearchByDate = async () => {
+    if (!date) {
+      showToast("Please select a date");
+      return;
+    }
+    setLoadingDateSearch(true);
+    try {
+      const res = await api.get(`/admin/rows/by-date`, {
+        params: { date },
+      });
+      const rows = Array.isArray(res.data) ? res.data : [];
+      setData(rows);
+      if (!rows.length) showToast("No data found for that date");
+    } catch (err) {
+      console.error("fetchByDate error:", err?.response || err);
+      if (err?.response?.status === 401 || err?.response?.status === 403) {
+        showToast("Session expired. Redirecting to login...");
+        setTimeout(() => {
+          signOut?.();
+          navigate("/");
+        }, 900);
+      } else {
+        showToast("Error fetching rows by date");
+      }
+    } finally {
+      setLoadingDateSearch(false);
+    }
+  };
+
+  // Download CSV by date
+  const handleDownloadByDate = async () => {
+    if (!date) {
+      showToast("Please select a date to download CSV");
+      return;
+    }
+    setLoadingDateDownload(true);
+    try {
+      const res = await api.get(`/admin/rows/export`, {
+        params: { date },
+        responseType: "blob",
+      });
+
+      const blob = new Blob([res.data], { type: "text/csv" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `rows_${date}_export.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(url);
+
+      showToast("CSV downloaded successfully");
+    } catch (err) {
+      console.error("downloadByDate error:", err?.response || err);
+      showToast("Error downloading CSV for date");
+    } finally {
+      setLoadingDateDownload(false);
     }
   };
 
@@ -106,11 +175,18 @@ function AdminDashboard() {
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center p-4 sm:p-6">
       <div className="w-full max-w-6xl bg-white p-4 sm:p-6 rounded-lg shadow">
-        <h2 className="text-2xl font-bold text-center mb-4">
-          Hey Admin 👋 — enter the Battery ID
-        </h2>
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-2xl font-bold">Hey Admin 👋</h2>
+          <button
+            onClick={handleLogout}
+            className="bg-[#dee11e] text-black px-4 py-2 rounded hover:bg-red-700"
+          >
+            Logout
+          </button>
+        </div>
 
-        <div className="flex flex-col sm:flex-row gap-3 mb-6 justify-center w-full">
+        {/* Battery ID search */}
+        <div className="flex flex-col sm:flex-row gap-3 mb-4 items-center">
           <input
             type="text"
             value={batteryId}
@@ -119,28 +195,49 @@ function AdminDashboard() {
             className="border border-gray-300 rounded px-4 py-2 w-full sm:w-64"
           />
 
-          <div className="flex flex-wrap justify-center gap-2">
+          <div className="flex gap-2">
             <button
               onClick={handleSearch}
-              disabled={loading}
+              disabled={loadingSearch}
               className="bg-[#dee11e] text-black px-5 py-2 rounded disabled:opacity-60"
             >
-              {loading ? "Searching..." : "Search"}
+              {loadingSearch ? "Searching..." : "Search"}
             </button>
 
             <button
               onClick={handleDownload}
-              disabled={loading}
+              disabled={loadingDownload}
               className="bg-slate-500 text-white px-5 py-2 rounded hover:bg-slate-700 disabled:opacity-60"
             >
-              {loading ? "Downloading..." : "Download CSV"}
+              {loadingDownload ? "Downloading..." : "Download CSV"}
+            </button>
+          </div>
+        </div>
+
+        {/* Date search */}
+        <div className="flex flex-col sm:flex-row gap-3 mb-6 items-center">
+          <input
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            className="border border-gray-300 rounded px-4 py-2 w-full sm:w-64"
+          />
+
+          <div className="flex gap-2">
+            <button
+              onClick={handleSearchByDate}
+              disabled={loadingDateSearch}
+              className="bg-[#dee11e] text-black px-5 py-2 rounded disabled:opacity-60"
+            >
+              {loadingDateSearch ? "Searching..." : "Search by date"}
             </button>
 
             <button
-              onClick={handleLogout}
-              className="bg-[#dee11e] text-black px-5 py-2 rounded hover:bg-red-700"
+              onClick={handleDownloadByDate}
+              disabled={loadingDateDownload}
+              className="bg-slate-500 text-white px-5 py-2 rounded hover:bg-slate-700 disabled:opacity-60"
             >
-              Logout
+              {loadingDateDownload ? "Downloading..." : "Download CSV"}
             </button>
           </div>
         </div>
@@ -151,7 +248,10 @@ function AdminDashboard() {
               <thead className="bg-gray-100 text-gray-700">
                 <tr>
                   {Object.keys(data[0]).map((key) => (
-                    <th key={key} className="px-3 py-2 border text-left font-semibold whitespace-nowrap">
+                    <th
+                      key={key}
+                      className="px-3 py-2 border text-left font-semibold whitespace-nowrap"
+                    >
                       {key}
                     </th>
                   ))}
