@@ -39,6 +39,7 @@ export default function UserDashboard() {
   const [lookupBatteryId, setLookupBatteryId] = useState("");
   const [cycleCount, setCycleCount] = useState(null);
   const [lookupLoading, setLookupLoading] = useState(false);
+  const [showCustomCustomer, setShowCustomCustomer] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem("batteryFormData");
@@ -94,11 +95,10 @@ export default function UserDashboard() {
   function validateAll(values) {
     const e = {};
     Object.entries(values).forEach(([key, val]) => {
-      // 'others' and 'customerNameCustom' optional except when Others selected (customerNameCustom handled below)
-      if (["others"].includes(key)) return;
+      // 'others' optional
+      if (["others", "customerNameCustom"].includes(key)) return;
       if (!val || String(val).trim() === "") {
         // enforce required for most fields
-        // we'll check special cases below
         e[key] = "This field is required";
       }
     });
@@ -181,13 +181,14 @@ export default function UserDashboard() {
       const res = await api.post("/rows", payload);
 
       // backend returns assigned chargingCycle (if implemented)
+      // backend returns assigned chargingCycle (if implemented)
       const assigned = res?.data?.chargingCycle ?? null;
       if (
         assigned !== null &&
         assigned !== undefined &&
         String(assigned).trim() !== ""
       ) {
-        setCycleCount(Number(assigned));
+        // DON'T setCycleCount(...) here — only show toast
         showToast(`Submitted successfully — cycles so far: ${assigned}`);
       } else {
         showToast("Submitted successfully");
@@ -320,22 +321,90 @@ export default function UserDashboard() {
                 <span className="text-base font-semibold text-black mt-1">
                   Customer Name *
                 </span>
+
+                {/* select controls whether we show the custom input */}
                 <select
                   name="customerName"
-                  value={form.customerName}
-                  onChange={handleChange}
+                  value={
+                    showCustomCustomer ? "Others" : form.customerName || ""
+                  }
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === "Others") {
+                      // switch to custom input mode and set customerName to "Others"
+                      setShowCustomCustomer(true);
+                      setForm((s) => {
+                        const next = {
+                          ...s,
+                          customerName: "Others",
+                          customerNameCustom: "",
+                        };
+                        setErrors(validateAll(next));
+                        try {
+                          localStorage.setItem(
+                            "batteryFormData",
+                            JSON.stringify(next)
+                          );
+                        } catch (err) {
+                          console.warn(
+                            "Failed to save draft to localStorage:",
+                            err
+                          );
+                        }
+                        return next;
+                      });
+                    } else {
+                      // user selected a known customer, store it directly in customerName
+                      setShowCustomCustomer(false);
+                      setForm((s) => {
+                        const next = {
+                          ...s,
+                          customerName: val,
+                          customerNameCustom: "",
+                        };
+                        setErrors(validateAll(next));
+                        try {
+                          localStorage.setItem(
+                            "batteryFormData",
+                            JSON.stringify(next)
+                          );
+                        } catch (err) {
+                          console.warn(
+                            "Failed to save draft to localStorage:",
+                            err
+                          );
+                        }
+                        return next;
+                      });
+                    }
+                  }}
                   className={inputCls("customerName")}
                   required
                 >
                   <option value="">Select Customer Name</option>
-                  <option value="Iffco">Iffco</option>
+                  <option value="IFFCO">IFFCO</option>
                   <option value="CIL">CIL</option>
                   <option value="Others">Others</option>
                 </select>
+
+                {/* show error for customerName if exists */}
                 {errors.customerName && (
                   <p className="text-red-500 text-xs mt-1">
                     {errors.customerName}
                   </p>
+                )}
+
+                {/* When Others is chosen, show a text input bound to customerNameCustom */}
+                {showCustomCustomer && (
+                  <div className="mt-2">
+                    <NoAutoFillInput
+                      label="Enter customer name"
+                      name="customerNameCustom"
+                      value={form.customerNameCustom}
+                      onChange={handleChange}
+                      className={inputCls("customerNameCustom")}
+                    />
+                  </div>
                 )}
               </div>
 
@@ -348,25 +417,6 @@ export default function UserDashboard() {
                 required
               />
             </div>
-
-            {/* Show custom customer name input when Others is selected */}
-            {form.customerName === "Others" && (
-              <div>
-                <NoAutoFillInput
-                  label="Enter Customer Name"
-                  name="customerNameCustom"
-                  value={form.customerNameCustom}
-                  onChange={handleChange}
-                  className={inputCls("customerNameCustom")}
-                  required
-                />
-                {errors.customerNameCustom && (
-                  <p className="text-red-500 text-xs mt-1">
-                    {errors.customerNameCustom}
-                  </p>
-                )}
-              </div>
-            )}
 
             {/* Location / Charge Current */}
             <div className="grid grid-cols-2 gap-4">
