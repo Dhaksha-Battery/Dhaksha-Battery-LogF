@@ -9,7 +9,8 @@ function AdminDashboard() {
   const { token, role, signOut } = useAuth();
 
   const [batteryId, setBatteryId] = useState("");
-  const [date, setDate] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
   const [data, setData] = useState([]);
 
   // Separate loading states for clarity:
@@ -101,20 +102,24 @@ function AdminDashboard() {
     }
   };
 
-  // Search rows by date (expects date in YYYY-MM-DD)
+  // Search rows by date range (expects YYYY-MM-DD)
   const handleSearchByDate = async () => {
-    if (!date) {
-      showToast("Please select a date");
+    if (!dateFrom || !dateTo) {
+      showToast("Please select both From and To dates");
+      return;
+    }
+    if (dateFrom > dateTo) {
+      showToast("From date cannot be later than To date");
       return;
     }
     setLoadingDateSearch(true);
     try {
       const res = await api.get(`/admin/rows/by-date`, {
-        params: { date },
+        params: { dateFrom, dateTo },
       });
       const rows = Array.isArray(res.data) ? res.data : [];
       setData(rows);
-      if (!rows.length) showToast("No data found for that date");
+      if (!rows.length) showToast("No data found for that date range");
     } catch (err) {
       console.error("fetchByDate error:", err?.response || err);
       if (err?.response?.status === 401 || err?.response?.status === 403) {
@@ -131,16 +136,20 @@ function AdminDashboard() {
     }
   };
 
-  // Download CSV by date
+  // Download CSV by date range
   const handleDownloadByDate = async () => {
-    if (!date) {
-      showToast("Please select a date to download CSV");
+    if (!dateFrom || !dateTo) {
+      showToast("Please select both From and To dates to download CSV");
+      return;
+    }
+    if (dateFrom > dateTo) {
+      showToast("From date cannot be later than To date");
       return;
     }
     setLoadingDateDownload(true);
     try {
       const res = await api.get(`/admin/rows/export`, {
-        params: { date },
+        params: { dateFrom, dateTo },
         responseType: "blob",
       });
 
@@ -148,7 +157,7 @@ function AdminDashboard() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `rows_${date}_export.csv`);
+      link.setAttribute("download", `rows_${dateFrom}_to_${dateTo}_export.csv`);
       document.body.appendChild(link);
       link.click();
       link.remove();
@@ -157,7 +166,7 @@ function AdminDashboard() {
       showToast("CSV downloaded successfully");
     } catch (err) {
       console.error("downloadByDate error:", err?.response || err);
-      showToast("Error downloading CSV for date");
+      showToast("Error downloading CSV for date range");
     } finally {
       setLoadingDateDownload(false);
     }
@@ -214,13 +223,21 @@ function AdminDashboard() {
           </div>
         </div>
 
-        {/* Date search */}
+        {/* Date range search */}
         <div className="flex flex-col sm:flex-row gap-3 mb-6 items-center">
           <input
             type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
             className="border border-gray-300 rounded px-4 py-2 w-full sm:w-64"
+            placeholder="From date"
+          />
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="border border-gray-300 rounded px-4 py-2 w-full sm:w-64"
+            placeholder="To date"
           />
 
           <div className="flex gap-2">
@@ -229,7 +246,7 @@ function AdminDashboard() {
               disabled={loadingDateSearch}
               className="bg-[#dee11e] text-black px-5 py-2 rounded disabled:opacity-60"
             >
-              {loadingDateSearch ? "Searching..." : "Search by date"}
+              {loadingDateSearch ? "Searching..." : "Search"}
             </button>
 
             <button

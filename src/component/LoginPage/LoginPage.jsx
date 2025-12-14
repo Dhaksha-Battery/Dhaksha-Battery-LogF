@@ -1,3 +1,4 @@
+// src\component\LoginPage\LoginPage.jsx
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../../api";
@@ -99,7 +100,7 @@ function LoginPage() {
           >
             {showPassword ? <FaEyeSlash size={18} /> : <FaEye size={18} />}
           </span>
-        </div> 
+        </div>
 
         {/* Submit Button */}
         <button
@@ -108,6 +109,17 @@ function LoginPage() {
         >
           Login
         </button>
+
+        {/* Forgot Password */}
+        <div className="mt-3 text-center">
+          <button
+            type="button"
+            onClick={() => navigate("/forgot-password")}
+            className="text-sm text-gray-600 hover:underline"
+          >
+            Forgot password?
+          </button>
+        </div>
 
         {/* Redirect to Register */}
         <div className="mt-4 text-sm text-center">

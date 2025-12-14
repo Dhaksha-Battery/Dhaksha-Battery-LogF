@@ -1,3 +1,4 @@
+// src\component\Footer\Footer.jsx
 function Footer() {
   return (
     <footer className="bg-[#dee11e] text-black text-center py-3 text-sm">

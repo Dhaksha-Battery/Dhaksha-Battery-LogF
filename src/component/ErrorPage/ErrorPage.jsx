@@ -1,3 +1,4 @@
+// src/component/ErrorPage/ErrorPage.jsx
 import { useRouteError, Link } from "react-router-dom";
 
 const ErrorPage = () => {

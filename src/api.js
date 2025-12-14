@@ -1,5 +1,4 @@
 // src/api.js
-// src/api/index.js (or api.js)
 import axios from "axios";
 
 function resolveBaseURL() {
