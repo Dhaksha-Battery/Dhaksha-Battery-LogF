@@ -26,11 +26,18 @@ const initialForm = {
   name: "",
 };
 
-export default function UserDashboard() {
+export default function UserDashboard({
+  embedded = false,
+  hideLookup = false,
+  hideActions = false,
+  title = "Battery Charging Log",
+  formData,
+  setFormData,
+}) {
   const navigate = useNavigate();
   const { signOut } = useAuth();
 
-  const [form, setForm] = useState(initialForm);
+  const [form, setForm] = useState(formData || initialForm);
   const [loading, setLoading] = useState(false);
   const [toast, setToast] = useState(null);
   const [errors, setErrors] = useState({});
@@ -52,21 +59,47 @@ export default function UserDashboard() {
   }, []);
 
   useEffect(() => {
+    if (embedded && formData) {
+      setForm(formData);
+    }
+  }, [embedded, formData]);
+
+  useEffect(() => {
     const start = form.chargeTimeInitial;
     const end = form.chargeTimeFinal;
 
     if (start && end) {
       const dur = calculateDuration(start, end);
-      setForm((s) => ({ ...s, duration: dur }));
+
+      setForm((s) => {
+        const next = { ...s, duration: dur };
+
+        // 🔴 THIS IS THE FIX
+        if (embedded && setFormData) {
+          setFormData(next);
+        }
+
+        return next;
+      });
+
       setErrors((prev) => {
         const next = { ...prev };
         delete next.duration;
         return next;
       });
     } else {
-      setForm((s) => ({ ...s, duration: "" }));
+      setForm((s) => {
+        const next = { ...s, duration: "" };
+
+        // 🔴 SAME HERE
+        if (embedded && setFormData) {
+          setFormData(next);
+        }
+
+        return next;
+      });
     }
-  }, [form.chargeTimeInitial, form.chargeTimeFinal]);
+  }, [form.chargeTimeInitial, form.chargeTimeFinal, embedded, setFormData]);
 
   const calculateDuration = (startStr, endStr) => {
     try {
@@ -115,12 +148,24 @@ export default function UserDashboard() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+
     setForm((s) => {
       const next = { ...s, [name]: value };
-      if (name === "customerName" && value !== "Others")
+
+      if (name === "customerName" && value !== "Others") {
         next.customerNameCustom = "";
+      }
+
       setErrors(validateAll(next));
-      localStorage.setItem("batteryFormData", JSON.stringify(next));
+
+      if (!embedded) {
+        localStorage.setItem("batteryFormData", JSON.stringify(next));
+      }
+
+      if (embedded && setFormData) {
+        setFormData(next);
+      }
+
       return next;
     });
   };
@@ -168,7 +213,7 @@ export default function UserDashboard() {
       setLookupLoading(true);
       const res = await api.get("/rows/cycles", { params: { batteryId } });
       setCycleCount(Number(res.data?.cycles ?? 0));
-    // eslint-disable-next-line no-unused-vars
+      // eslint-disable-next-line no-unused-vars
     } catch (err) {
       showToastMsg("Failed to fetch cycles");
     } finally {
@@ -192,58 +237,60 @@ export default function UserDashboard() {
     <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
       <div className="flex flex-col">
         {/* LOOKUP SECTION */}
-        <div className="mb-6">
-          <label className="text-base font-bold text-gray-700">
-            Lookup cycles by Battery ID
-          </label>
-          <div className="flex gap-3 mt-2">
-            <input
-              type="text"
-              value={lookupBatteryId}
-              onChange={(e) => setLookupBatteryId(e.target.value)}
-              onKeyDown={onLookupKey}
-              placeholder="Type your battery id"
-              className="flex-1 border px-3 py-2 rounded"
-            />
-            <button
-              onClick={() => fetchCycles(lookupBatteryId)}
-              disabled={lookupLoading}
-              className="px-4 py-2 bg-[#dee11e] text-black rounded"
-            >
-              {lookupLoading ? "Loading..." : "Get"}
-            </button>
-          </div>
-
-          {/* CYCLE DISPLAY WITH COLORS */}
-          <div className="mt-2">
-            {cycleCount === null ? (
-              <span className="text-gray-500 text-sm">No cycles loaded</span>
-            ) : cycleCount === 0 ? (
-              <span className="text-gray-500 text-sm">Cycles: 0</span>
-            ) : (
-              <span
-                className={`text-base font-semibold ${
-                  cycleCount <= 250
-                    ? "text-green-600"
-                    : cycleCount <= 450
-                    ? "text-yellow-600"
-                    : "text-red-600"
-                }`}
+        {!hideLookup && (
+          <div className="mb-6">
+            <label className="text-base font-bold text-gray-700">
+              Lookup cycles by Battery ID
+            </label>
+            <div className="flex gap-3 mt-2">
+              <input
+                type="text"
+                value={lookupBatteryId}
+                onChange={(e) => setLookupBatteryId(e.target.value)}
+                onKeyDown={onLookupKey}
+                placeholder="Type your battery id"
+                className="flex-1 border px-3 py-2 rounded"
+              />
+              <button
+                onClick={() => fetchCycles(lookupBatteryId)}
+                disabled={lookupLoading}
+                className="px-4 py-2 bg-[#dee11e] text-black rounded"
               >
-                Cycles: {cycleCount}{" "}
-                {cycleCount > 500 && (
-                  <span className="text-red-600 font-bold ml-2">Critical!</span>
-                )}
-              </span>
-            )}
+                {lookupLoading ? "Loading..." : "Get"}
+              </button>
+            </div>
+
+            {/* CYCLE DISPLAY WITH COLORS */}
+            <div className="mt-2">
+              {cycleCount === null ? (
+                <span className="text-gray-500 text-sm">No cycles loaded</span>
+              ) : cycleCount === 0 ? (
+                <span className="text-gray-500 text-sm">Cycles: 0</span>
+              ) : (
+                <span
+                  className={`text-base font-semibold ${
+                    cycleCount <= 250
+                      ? "text-green-600"
+                      : cycleCount <= 450
+                      ? "text-yellow-600"
+                      : "text-red-600"
+                  }`}
+                >
+                  Cycles: {cycleCount}{" "}
+                  {cycleCount > 500 && (
+                    <span className="text-red-600 font-bold ml-2">
+                      Critical!
+                    </span>
+                  )}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* ---- FORM ---- */}
         <div className="w-full max-w-3xl bg-white rounded-xl shadow-md p-6">
-          <h2 className="text-2xl font-bold text-center mb-6">
-            Battery Charging Log
-          </h2>
+          <h2 className="text-2xl font-bold text-center mb-6">{title}</h2>
 
           <form onSubmit={handleSubmit} className="space-y-6" noValidate>
             {/* Battery ID + Date */}
@@ -279,21 +326,20 @@ export default function UserDashboard() {
                   }
                   onChange={(e) => {
                     const val = e.target.value;
-                    if (val === "Others") {
-                      setShowCustomCustomer(true);
-                      setForm((s) => ({
-                        ...s,
-                        customerName: "Others",
-                        customerNameCustom: "",
-                      }));
-                    } else {
-                      setShowCustomCustomer(false);
-                      setForm((s) => ({
-                        ...s,
-                        customerName: val,
-                        customerNameCustom: "",
-                      }));
+
+                    setShowCustomCustomer(val === "Others");
+
+                    const updater = (s) => ({
+                      ...s,
+                      customerName: val,
+                      customerNameCustom: "",
+                    });
+
+                    if (embedded && setFormData) {
+                      setFormData(updater);
                     }
+
+                    setForm(updater);
                   }}
                   className={inputCls("customerName")}
                 >
@@ -380,7 +426,7 @@ export default function UserDashboard() {
               </div>
 
               <NoAutoFillInput
-                label="Charge Current (A)"
+                label="Charge Current (A) *"
                 name="chargeCurrent"
                 value={form.chargeCurrent}
                 onChange={handleChange}
@@ -412,6 +458,9 @@ export default function UserDashboard() {
             {/* Charging Times */}
             <div>
               <div className="font-semibold">Charging Time (HH:MM) *</div>
+              <div className="font-medium">
+                (Please enter the values in 24 hour format)
+              </div>
               <div className="grid grid-cols-3 gap-4">
                 <NoAutoFillInput
                   label="Initial"
@@ -440,21 +489,21 @@ export default function UserDashboard() {
             {/* Drone, UIN, Name */}
             <div className="grid grid-cols-3 gap-4">
               <NoAutoFillInput
-                label="Drone number"
+                label="Drone number *"
                 name="droneno"
                 value={form.droneno}
                 onChange={handleChange}
                 className={inputCls("droneno")}
               />
               <NoAutoFillInput
-                label="UIN of UAS"
+                label="UIN of UAS *"
                 name="uin"
                 value={form.uin}
                 onChange={handleChange}
                 className={inputCls("uin")}
               />
               <NoAutoFillInput
-                label="Responsible Person (Name)"
+                label="Responsible Person (Name) *"
                 name="name"
                 value={form.name}
                 onChange={handleChange}
@@ -502,30 +551,32 @@ export default function UserDashboard() {
             </div>
 
             {/* Buttons */}
-            <div className="flex gap-3">
-              <button
-                type="submit"
-                disabled={loading || !isValid()}
-                className={`flex-1 py-2 rounded text-black ${
-                  loading || !isValid()
-                    ? "bg-gray-400"
-                    : "bg-[#dee11e] hover:bg-slate-500"
-                }`}
-              >
-                {loading ? "Submitting..." : "Submit"}
-              </button>
+            {!hideActions && (
+              <div className="flex gap-3">
+                <button
+                  type="submit"
+                  disabled={loading || !isValid()}
+                  className={`flex-1 py-2 rounded text-black ${
+                    loading || !isValid()
+                      ? "bg-gray-400"
+                      : "bg-[#dee11e] hover:bg-slate-500"
+                  }`}
+                >
+                  {loading ? "Submitting..." : "Submit"}
+                </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  signOut();
-                  navigate("/");
-                }}
-                className="flex-1 py-2 bg-[#dee11e] text-black rounded hover:bg-red-600"
-              >
-                Logout
-              </button>
-            </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    signOut();
+                    navigate("/");
+                  }}
+                  className="flex-1 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                >
+                  Logout
+                </button>
+              </div>
+            )}
           </form>
         </div>
 

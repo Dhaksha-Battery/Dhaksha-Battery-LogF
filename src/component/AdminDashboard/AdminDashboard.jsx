@@ -188,7 +188,7 @@ function AdminDashboard() {
           <h2 className="text-2xl font-bold">Hey Admin 👋</h2>
           <button
             onClick={handleLogout}
-            className="bg-[#dee11e] text-black px-4 py-2 rounded hover:bg-red-700"
+            className="bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600"
           >
             Logout
           </button>

@@ -6,7 +6,9 @@ import Footer from "./component/Footer/Footer";
 import AdminDashboard from "./component/AdminDashboard/AdminDashboard";
 import LoginPage from "./component/LoginPage/LoginPage";
 import RegisterPage from "./component/RegisterPage/RegisterPage";
+import DashboardHome from "./component/UserDashboard/DashboardHome";
 import UserDashboard from "./component/UserDashboard/UserDashboard";
+import DualUserDashboard from "./component/UserDashboard/DualUserDashboard";
 import ErrorPage from "./component/ErrorPage/ErrorPage";
 import ForgotPassword from "./component/ForgotPassword/ForgotPassword";
 import ResetPasswordOtp from "./component/ResetPassword/ResetPasswordOtp";
@@ -30,7 +32,9 @@ const router = createBrowserRouter([
     children: [
       { path: "/", element: <LoginPage /> },
       { path: "/register", element: <RegisterPage /> },
-      { path: "/dashboard", element: <UserDashboard /> },
+      { path: "/dashboard", element: <DashboardHome /> },
+      { path: "/dashboard/single", element: <UserDashboard /> },
+      { path: "/dashboard/dual", element: <DualUserDashboard /> },
       { path: "/admin", element: <AdminDashboard /> },
 
       // Forgot / Reset password (OTP) routes
