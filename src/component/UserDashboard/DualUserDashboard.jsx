@@ -83,18 +83,22 @@ export default function DualUserDashboard() {
         secondary: resolveCustomer(form2),
       });
 
-      // ✅ SAME UX AS SINGLE FORM (toast-style message)
+      const b1 = res.data?.battery1;
+      const b2 = res.data?.battery2;
+
+      // ✅ SAME UX AS SINGLE FORM, BUT WITH BOTH CYCLES + LONGER TIME
       showToastMsg(
-        res.data?.chargingCycle
-          ? `Submitted successfully — cycles so far: ${res.data.chargingCycle}`
-          : "Submitted successfully"
+        `Submitted successfully ✅
+        Battery 1 (${b1.id}) — Cycles: ${b1.cycles}
+        Battery 2 (${b2.id}) — Cycles: ${b2.cycles}`,
+        7000 // ⏳ longer duration
       );
 
       // ✅ reset both forms (NO redirect)
       setForm1(initialForm);
       setForm2(initialForm);
     } catch (err) {
-      showToastMsg(err?.response?.data?.message || "Submission failed");
+      showToastMsg(err?.response?.data?.message || "Submission failed", 4000);
     } finally {
       setLoading(false);
     }
